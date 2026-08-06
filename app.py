@@ -380,7 +380,6 @@ with gr.Blocks(title="Connoisseur Companion") as demo:
             chatbot = gr.Chatbot(
                 elem_id="cc-chatbot",
                 buttons=["copy"],
-                avatar_images=(None, "🍽️"),
                 label="Chat",
             )
             msg_input = gr.Textbox(
