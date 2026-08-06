@@ -40,7 +40,7 @@ It's built around a single domain — California restaurants — using:
 ┌─────────────────────────────┐
 │   Module 1 — Data Prep      │  Extract structured JSON + image captions
 │   (multimodal LLM pipeline) │  from raw restaurant text & review photos
-└──────────────┬───────────────┘
+└──────────────┬──────────────┘
                │
 ┌──────────────▼───────────────┐
 │   Module 2 — RAG             │  Chunk + embed restaurant/recipe data,
@@ -51,13 +51,13 @@ It's built around a single domain — California restaurants — using:
 │   Module 3 — Agentic Layer   │  Design 6 specialized agents (L1) → wire them
 │   (design → orchestrate →    │  into a stateful multi-agent workflow with
 │   productionize)             │  parallel phases (L2) → expose as a real
-│                               │  tool-calling chatbot over MCP (L3)
+│                              │  tool-calling chatbot over MCP (L3)
 └──────────────┬───────────────┘
                │
 ┌──────────────▼───────────────┐
 │   Deployed App (this repo)   │  Gradio host (app.py) ⇄ MCP tool server
-│                               │  (server.py) ⇄ Gemini LLM, hosted on Render
-└───────────────────────────────┘
+│                              │  (server.py) ⇄ Gemini LLM, hosted on Render
+└──────────────────────────────┘
 ```
 
 The deployed app (`app.py` + `server.py`) is a **simplified, production-ready distillation** of the ideas explored in the Module 3 notebooks: instead of a LangGraph multi-agent workflow with 6 specialized agents, it uses a single ReAct agent that dynamically chooses from 3 well-scoped tools — a deliberate trade-off explained below.
