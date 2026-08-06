@@ -259,41 +259,89 @@ CUSTOM_CSS = """
 :root {
     --cc-radius: 14px;
 }
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
 .gradio-container {
     max-width: 1100px !important;
     margin: 0 auto !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 0.5rem 1rem !important;
+    box-sizing: border-box !important;
 }
 #cc-header {
     text-align: center;
-    padding: 0.5rem 0 1rem 0;
+    padding: 0.25rem 0 0.5rem 0;
+    flex-shrink: 0;
 }
 #cc-header h1 {
-    font-size: 1.9rem;
-    margin-bottom: 0.25rem;
+    font-size: 1.5rem;
+    margin-bottom: 0.15rem;
 }
 #cc-header p {
     opacity: 0.75;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    margin: 0;
+}
+#cc-main-row {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+#cc-chat-col, #cc-trace-col {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 #cc-chatbot {
     border-radius: var(--cc-radius) !important;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+#cc-trace-col > div {
+    min-height: 0;
 }
 #cc-trace {
     border-radius: var(--cc-radius) !important;
-    max-height: 520px;
-    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto !important;
+    border: 1px solid var(--border-color-primary);
+    padding: 0.75rem;
+}
+.cc-examples {
+    flex-shrink: 0;
 }
 .cc-examples button {
     border-radius: 999px !important;
-    font-size: 0.85rem !important;
+    font-size: 0.8rem !important;
 }
 /* Stack the chat and trace panels on narrow / mobile screens */
 @media (max-width: 900px) {
+    html, body {
+        overflow: auto;
+    }
+    .gradio-container {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
     #cc-main-row {
         flex-direction: column !important;
     }
+    #cc-chatbot {
+        height: 420px !important;
+    }
+    #cc-trace {
+        max-height: 320px;
+    }
     #cc-header h1 {
-        font-size: 1.5rem;
+        font-size: 1.3rem;
     }
 }
 """
@@ -308,10 +356,9 @@ with gr.Blocks(title="Connoisseur Companion") as demo:
         )
 
     with gr.Row(elem_id="cc-main-row", equal_height=True):
-        with gr.Column(scale=3, min_width=320):
+        with gr.Column(scale=3, min_width=320, elem_id="cc-chat-col"):
             chatbot = gr.Chatbot(
                 elem_id="cc-chatbot",
-                height=480,
                 buttons=["copy"],
                 avatar_images=(None, "🍽️"),
                 label="Chat",
@@ -323,11 +370,11 @@ with gr.Blocks(title="Connoisseur Companion") as demo:
                 autofocus=True,
             )
             with gr.Row(elem_classes="cc-examples"):
-                btn1 = gr.Button("🌙 Find moody restaurants", size="sm")
-                btn2 = gr.Button("🥩 Tell me about Iron & Embers", size="sm")
-                btn3 = gr.Button("🍵 Zen dining in Little Tokyo?", size="sm")
+                btn1 = gr.Button("🍝 Recommend a restaurant for a special occasion", size="sm")
+                btn2 = gr.Button("💸 Find a good casual spot that won't break the bank", size="sm")
+                btn3 = gr.Button("⭐ What's your top-rated pick right now?", size="sm")
 
-        with gr.Column(scale=2, min_width=280):
+        with gr.Column(scale=2, min_width=280, elem_id="cc-trace-col"):
             gr.Markdown("### 🔍 Multi-Agent Reasoning Trace")
             gr.Markdown(
                 "_Shows which specialized agent/tool handled each message, for the whole conversation. Scroll to review earlier turns._",
@@ -343,9 +390,9 @@ with gr.Blocks(title="Connoisseur Companion") as demo:
     msg_input.submit(handle_chat, [msg_input, chatbot, trace_state], [chatbot, trace_state, trace_panel])
     msg_input.submit(lambda: "", None, msg_input)
 
-    btn1.click(handle_chat, [gr.State("Find me some moody restaurants"), chatbot, trace_state], [chatbot, trace_state, trace_panel])
-    btn2.click(handle_chat, [gr.State("Tell me about Iron & Embers"), chatbot, trace_state], [chatbot, trace_state, trace_panel])
-    btn3.click(handle_chat, [gr.State("What's a zen dining experience in Little Tokyo?"), chatbot, trace_state], [chatbot, trace_state, trace_panel])
+    btn1.click(handle_chat, [gr.State("Recommend a restaurant for a special occasion"), chatbot, trace_state], [chatbot, trace_state, trace_panel])
+    btn2.click(handle_chat, [gr.State("Find a good casual spot that won't break the bank"), chatbot, trace_state], [chatbot, trace_state, trace_panel])
+    btn3.click(handle_chat, [gr.State("What's your top-rated pick right now?"), chatbot, trace_state], [chatbot, trace_state, trace_panel])
 
 # Launch the App
 if __name__ == "__main__":
