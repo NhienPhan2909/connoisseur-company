@@ -99,11 +99,34 @@ def _format_rate_limit_message(exc: Exception) -> str:
         f"Please try again in **{wait_str}** (around **{reset_time.strftime('%I:%M %p')}**)."
     )
 
+def _format_tool_args(args: dict) -> str:
+    return ", ".join(f'{k}="{v}"' for k, v in args.items()) if args else ""
+
+
+def _render_trace(steps: list[dict]) -> str:
+    """Render the collected ReAct steps as a readable markdown trace showing
+    each reasoning/tool-call step the agent took, for transparency in the UI."""
+    if not steps:
+        return "_No tool calls were needed for this response — the agent answered directly._"
+
+    lines = []
+    for i, step in enumerate(steps, start=1):
+        if step["type"] == "tool_call":
+            lines.append(
+                f"**Step {i} — Tool call:** `{step['name']}({_format_tool_args(step['args'])})`\n\n"
+                f"> {step['result']}"
+            )
+        elif step["type"] == "final":
+            lines.append(f"**Step {i} — Final answer generated** using the information above.")
+    return "\n\n---\n\n".join(lines)
+
+
 # MCP Host — ReAct Agent Loop
-async def chat_with_agent(user_message: str, history: list) -> str:
+async def chat_with_agent(user_message: str, history: list, trace_steps: list) -> str:
     """Connect to the MCP server, discover tools, and run a ReAct loop.
     The LLM decides which tools to call, calls them via the MCP server,
-    and repeats until it produces a final text response."""
+    and repeats until it produces a final text response. Each tool call is
+    recorded into trace_steps so the UI can display the agent's reasoning."""
     transport = PythonStdioTransport(script_path=SERVER_SCRIPT)
 
     async with Client(transport) as client:
@@ -144,6 +167,7 @@ async def chat_with_agent(user_message: str, history: list) -> str:
 
                 # No tool calls means the LLM is done — return the final response
                 if not response.tool_calls:
+                    trace_steps.append({"type": "final"})
                     raw = response.content
                     if isinstance(raw, list):
                         return " ".join(
@@ -159,6 +183,14 @@ async def chat_with_agent(user_message: str, history: list) -> str:
                         item.text if hasattr(item, "text") else str(item)
                         for item in result.content
                     ) if result.content else "(no result)"
+                    trace_steps.append(
+                        {
+                            "type": "tool_call",
+                            "name": tool_call["name"],
+                            "args": tool_call["args"],
+                            "result": tool_output[:400] + ("…" if len(tool_output) > 400 else ""),
+                        }
+                    )
                     messages.append(ToolMessage(content=tool_output, tool_call_id=tool_call["id"]))
 
             return "I wasn't able to complete that request. Please try again."
@@ -172,41 +204,107 @@ async def handle_chat(user_message, history):
     if history is None:
         history = []
     if not user_message or not user_message.strip():
-        yield history
+        yield history, gr.update()
         return
 
     # Show a thinking placeholder while the agent runs
     history = history + [
         {"role": "user", "content": user_message},
-        {"role": "assistant", "content": "Thinking..."},
+        {"role": "assistant", "content": "_Thinking..._"},
     ]
-    yield history
+    yield history, gr.update(value="_Waiting for the agent to reason and call tools..._")
 
-    response_text = await chat_with_agent(user_message, history[:-2])
+    trace_steps: list[dict] = []
+    response_text = await chat_with_agent(user_message, history[:-2], trace_steps)
     history[-1] = {"role": "assistant", "content": response_text}
-    yield history
+    yield history, gr.update(value=_render_trace(trace_steps))
+
+
+CUSTOM_CSS = """
+:root {
+    --cc-radius: 14px;
+}
+.gradio-container {
+    max-width: 1100px !important;
+    margin: 0 auto !important;
+}
+#cc-header {
+    text-align: center;
+    padding: 0.5rem 0 1rem 0;
+}
+#cc-header h1 {
+    font-size: 1.9rem;
+    margin-bottom: 0.25rem;
+}
+#cc-header p {
+    opacity: 0.75;
+    font-size: 0.95rem;
+}
+#cc-chatbot {
+    border-radius: var(--cc-radius) !important;
+}
+#cc-trace {
+    border-radius: var(--cc-radius) !important;
+    max-height: 520px;
+    overflow-y: auto;
+}
+.cc-examples button {
+    border-radius: 999px !important;
+    font-size: 0.85rem !important;
+}
+/* Stack the chat and trace panels on narrow / mobile screens */
+@media (max-width: 900px) {
+    #cc-main-row {
+        flex-direction: column !important;
+    }
+    #cc-header h1 {
+        font-size: 1.5rem;
+    }
+}
+"""
 
 # Gradio Interface
 with gr.Blocks(title="Connoisseur Companion") as demo:
-    gr.Markdown("# Connoisseur Companion\nYour AI guide to California's restaurant scene. Ask me about restaurants by name, cuisine, or vibe!")
+    with gr.Column(elem_id="cc-header"):
+        gr.Markdown(
+            "# 🍽️ Connoisseur Companion\n"
+            "Your AI guide to California's restaurant scene — powered by a multi-tool agent "
+            "over a Retrieval-Augmented restaurant &amp; review dataset."
+        )
 
-    chatbot = gr.Chatbot(height=500)
-    msg_input = gr.Textbox(
-        label="Ask about restaurants",
-        placeholder='e.g., "Find me a moody spot in DTLA" or "Tell me about Sakura Garden"',
-    )
+    with gr.Row(elem_id="cc-main-row", equal_height=True):
+        with gr.Column(scale=3, min_width=320):
+            chatbot = gr.Chatbot(
+                elem_id="cc-chatbot",
+                height=480,
+                buttons=["copy"],
+                avatar_images=(None, "🍽️"),
+                label="Chat",
+            )
+            msg_input = gr.Textbox(
+                label=None,
+                show_label=False,
+                placeholder='Ask about a restaurant, cuisine, or vibe — e.g. "Find me a moody spot in DTLA"',
+                autofocus=True,
+            )
+            with gr.Row(elem_classes="cc-examples"):
+                btn1 = gr.Button("🌙 Find moody restaurants", size="sm")
+                btn2 = gr.Button("🥩 Tell me about Iron & Embers", size="sm")
+                btn3 = gr.Button("🍵 Zen dining in Little Tokyo?", size="sm")
 
-    with gr.Row():
-        btn1 = gr.Button("Find moody restaurants", size="sm")
-        btn2 = gr.Button("Tell me about Iron & Embers", size="sm")
-        btn3 = gr.Button("Zen dining in Little Tokyo?", size="sm")
+        with gr.Column(scale=2, min_width=280):
+            gr.Markdown("### 🔍 Agent reasoning trace")
+            trace_panel = gr.Markdown(
+                "_Ask a question to see which tools the agent calls and what data it retrieves, step by step._",
+                elem_id="cc-trace",
+            )
 
-    msg_input.submit(handle_chat, [msg_input, chatbot], [chatbot])
+    msg_input.submit(handle_chat, [msg_input, chatbot], [chatbot, trace_panel])
     msg_input.submit(lambda: "", None, msg_input)
 
-    btn1.click(handle_chat, [gr.State("Find me some moody restaurants"), chatbot], [chatbot])
-    btn2.click(handle_chat, [gr.State("Tell me about Iron & Embers"), chatbot], [chatbot])
-    btn3.click(handle_chat, [gr.State("What's a zen dining experience in Little Tokyo?"), chatbot], [chatbot])
+    btn1.click(handle_chat, [gr.State("Find me some moody restaurants"), chatbot], [chatbot, trace_panel])
+    btn2.click(handle_chat, [gr.State("Tell me about Iron & Embers"), chatbot], [chatbot, trace_panel])
+    btn3.click(handle_chat, [gr.State("What's a zen dining experience in Little Tokyo?"), chatbot], [chatbot, trace_panel])
 
 # Launch the App
 if __name__ == "__main__":
@@ -219,5 +317,6 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=int(os.environ.get("PORT", 7860)),
         share=not running_on_host,
-        theme=gr.themes.Soft(),
+        css=CUSTOM_CSS,
+        theme=gr.themes.Soft(primary_hue="orange", neutral_hue="slate"),
     )
