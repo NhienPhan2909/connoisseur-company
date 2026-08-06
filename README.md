@@ -64,7 +64,7 @@ The deployed app (`app.py` + `server.py`) is a **simplified, production-ready di
 
 ## Agentic design: from single agent to a specialized multi-agent system
 
-`M3L1-Design-Specialized-Agents-v1.ipynb` defines **six specialized agents**, each with a `role`, `goal`, and `backstory` (the classic agent-definition pattern popularized by frameworks like CrewAI, reimplemented here with plain system prompts + an LLM client):
+There are **six specialized agents**, each with a `role`, `goal`, and `backstory` (the classic agent-definition pattern popularized by frameworks like CrewAI, reimplemented here with plain system prompts + an LLM client):
 
 | # | Agent | Responsibility | Why a separate agent? |
 |---|-------|-----------------|------------------------|
@@ -92,7 +92,7 @@ Separating *task* from *agent* config makes the pipeline declarative: swapping i
 
 ## Workflow orchestration (sequential + parallel phases)
 
-`M3L2-Implement-Multi-Agent-Systems-v1.ipynb` wires the six agents into a **hybrid workflow** — sequential where there's a hard data dependency, parallel where there isn't:
+The six agents are organized in a **hybrid workflow** — sequential where there's a hard data dependency, parallel where there isn't:
 
 | Phase | Type | Agents | Why |
 |-------|------|--------|-----|
@@ -106,8 +106,6 @@ A shared `AgentState` (a `TypedDict`) flows through every node — each node rea
 **Why Phase 3 dominates runtime:** even in parallel, Phase 3 is bottlenecked by its *slowest* of the three agents (each is a separate LLM call with its own latency), whereas Phases 1, 2, and 4 are single LLM calls each — so Phase 3 is the phase most worth optimizing (e.g., using faster/cheaper models for the parallel agents) if latency becomes a concern.
 
 ## Production chatbot: tool-calling with MCP
-
-`M3L3-Build-Chatbot-Interface-v1.ipynb` — and this repo's deployed `app.py`/`server.py` — take a different, more *production-realistic* approach than the full 6-agent workflow: a **single ReAct agent equipped with tools exposed over the Model Context Protocol (MCP)**.
 
 **Why MCP + a single agent instead of the full 6-agent LangGraph pipeline for the live demo?**
 - **Latency & cost**: A user chatting expects a fast reply. Running 4 sequential LLM calls plus 3 parallel ones per turn (as the full multi-agent workflow does) is appropriate for an offline batch-recommendation job, but too slow/expensive for an interactive chat turn.
@@ -131,7 +129,7 @@ A shared `AgentState` (a `TypedDict`) flows through every node — each node rea
 ## Tech stack
 
 - **LLM**: Google Gemini (`gemini-flash-lite-latest`) via `langchain-google-genai`
-- **Agent orchestration**: LangGraph (`M3L2` workflow) · custom ReAct loop (production `app.py`)
+- **Agent orchestration**: Custom ReAct loop (production `app.py`)
 - **Tool protocol**: MCP (Model Context Protocol) via `fastmcp`
 - **UI**: Gradio (custom CSS for a responsive, mobile-friendly layout)
 - **Data**: LLM-extracted structured JSON + multimodal (image-captioned) review data
@@ -147,10 +145,6 @@ requirements.txt                # Pinned deploy dependencies
 structured_restaurant_data.json # LLM-extracted structured restaurant records
 augmented_user_review.json      # User reviews with LLM-generated image captions
 California-Culinary-Map.txt     # Raw source text describing California restaurants
-M2L1-v1.ipynb, M2L2-v1.ipynb, M2L3-v1.ipynb        # Module 2: RAG / vector database construction
-M3L1-Design-Specialized-Agents-v1.ipynb            # Module 3.1: define 6 agents' roles/goals/backstories + 6 tasks
-M3L2-Implement-Multi-Agent-Systems-v1.ipynb         # Module 3.2: LangGraph workflow, sequential + parallel phases
-M3L3-Build-Chatbot-Interface-v1.ipynb               # Module 3.3: intent classification, preference extraction, chatbot loop
 ```
 
 ## Running locally
