@@ -303,6 +303,26 @@ html, body {
     flex: 1 1 auto;
     min-height: 0;
 }
+#cc-msg-input {
+    flex-shrink: 0;
+    margin-top: 0.4rem;
+}
+#cc-msg-input label span {
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+}
+#cc-msg-input textarea, #cc-msg-input input {
+    border: 2px solid var(--color-accent) !important;
+    border-radius: 10px !important;
+    font-size: 1rem !important;
+    padding: 0.65rem 0.9rem !important;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+}
+#cc-msg-input textarea::placeholder, #cc-msg-input input::placeholder {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 #cc-trace-col > div {
     min-height: 0;
 }
@@ -364,9 +384,10 @@ with gr.Blocks(title="Connoisseur Companion") as demo:
                 label="Chat",
             )
             msg_input = gr.Textbox(
-                label=None,
-                show_label=False,
-                placeholder='Ask about a restaurant, cuisine, or vibe — e.g. "Find me a moody spot in DTLA"',
+                elem_id="cc-msg-input",
+                label="Type your message",
+                show_label=True,
+                placeholder='e.g. "Find me a moody spot in DTLA"',
                 autofocus=True,
             )
             with gr.Row(elem_classes="cc-examples"):
