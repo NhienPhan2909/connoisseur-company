@@ -291,12 +291,19 @@ html, body {
 #cc-main-row {
     flex: 1 1 auto;
     min-height: 0;
+    flex-wrap: nowrap;
 }
 #cc-chat-col, #cc-trace-col {
     height: 100%;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    /* Gradio's default Column CSS sets flex-wrap: wrap, which — combined with
+       flex-direction: column and a height-constrained container — makes
+       overflowing children wrap into a brand new column to the right instead
+       of scrolling, causing horizontal page overflow. Force nowrap so
+       children always stack vertically and never spill sideways. */
+    flex-wrap: nowrap;
 }
 #cc-chatbot {
     border-radius: var(--cc-radius) !important;
@@ -382,6 +389,15 @@ html, body {
         height: auto !important;
         min-width: 0 !important;
         width: 100% !important;
+        flex-wrap: nowrap !important;
+        /* gr.Column(scale=...) sets flex-grow to split *width* on desktop's
+           side-by-side row. Once stacked vertically here, that same
+           flex-grow ratio would instead split the row's *height*, squeezing
+           cc-chat-col too short for its content (chatbot + input + example
+           buttons) and making the trace section overlap it. Let each
+           column size to its own content instead. */
+        flex-grow: 0 !important;
+        flex-basis: auto !important;
     }
     #cc-chatbot {
         height: 52vh !important;
