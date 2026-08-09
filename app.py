@@ -336,11 +336,22 @@ html, body {
 }
 .cc-examples {
     flex-shrink: 0;
-    flex-wrap: wrap !important;
+    flex-wrap: nowrap !important;
+    gap: 0.4rem !important;
+}
+.cc-examples > .form,
+.cc-examples > * {
+    min-width: 0 !important;
+    flex: 1 1 0 !important;
 }
 .cc-examples button {
     border-radius: 999px !important;
     font-size: 0.8rem !important;
+    width: 100% !important;
+}
+/* Hidden on desktop — only meaningful on mobile where the trace section is collapsible */
+#cc-trace-toggle {
+    display: none;
 }
 /* Larger, easier-to-tap touch targets across the board on touch devices */
 @media (pointer: coarse) {
@@ -353,17 +364,19 @@ html, body {
 /* Stack the chat and trace panels on narrow / mobile screens */
 @media (max-width: 900px) {
     html, body {
-        overflow: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
     }
     .gradio-container {
         height: auto !important;
         max-height: none !important;
         overflow: visible !important;
         padding: 0.4rem 0.6rem !important;
+        width: 100% !important;
     }
     #cc-main-row {
         flex-direction: column !important;
-        gap: 0.75rem !important;
+        gap: 0.6rem !important;
     }
     #cc-chat-col, #cc-trace-col {
         height: auto !important;
@@ -371,14 +384,31 @@ html, body {
         width: 100% !important;
     }
     #cc-chatbot {
-        height: 60vh !important;
-        min-height: 320px;
-    }
-    #cc-trace {
-        max-height: 320px;
+        height: 52vh !important;
+        min-height: 260px;
     }
     #cc-header h1 {
         font-size: 1.3rem;
+    }
+    /* Show the toggle button and collapse the trace body by default on mobile */
+    #cc-trace-toggle {
+        display: flex !important;
+        width: 100%;
+    }
+    #cc-trace-toggle button {
+        width: 100%;
+        border-radius: 999px !important;
+        font-size: 0.85rem !important;
+    }
+    #cc-trace-body {
+        display: none;
+        overflow: hidden;
+    }
+    #cc-trace-body.cc-open {
+        display: flex !important;
+    }
+    #cc-trace {
+        max-height: 45vh;
     }
 }
 
@@ -388,15 +418,15 @@ html, body {
         padding: 0.35rem 0.5rem !important;
     }
     #cc-header h1 {
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         line-height: 1.3;
     }
     #cc-header p {
-        font-size: 0.8rem;
+        font-size: 0.78rem;
     }
     #cc-chatbot {
-        height: 55vh !important;
-        min-height: 280px;
+        height: 48vh !important;
+        min-height: 240px;
         font-size: 0.95rem;
     }
     /* Prevent iOS Safari from auto-zooming when the input is focused
@@ -405,23 +435,24 @@ html, body {
         font-size: 16px !important;
         padding: 0.6rem 0.8rem !important;
     }
-    /* Stack example prompt buttons full-width instead of a cramped row */
+    /* Keep the 3 example buttons on a single line, just tighter and shorter */
     .cc-examples {
-        flex-direction: column !important;
+        gap: 0.3rem !important;
     }
     .cc-examples button {
-        width: 100% !important;
         white-space: normal !important;
+        line-height: 1.15;
         min-height: 44px;
-        font-size: 0.85rem !important;
+        font-size: 0.68rem !important;
+        padding: 0.35rem 0.3rem !important;
     }
     #cc-trace {
-        max-height: 260px;
+        max-height: 40vh;
         padding: 0.6rem;
         font-size: 0.9rem;
     }
     #cc-trace-caption {
-        font-size: 0.8rem;
+        font-size: 0.78rem;
     }
 }
 """
@@ -456,16 +487,44 @@ with gr.Blocks(title="Connoisseur Companion") as demo:
 
         with gr.Column(scale=2, min_width=280, elem_id="cc-trace-col"):
             gr.Markdown("### 🔍 Multi-Agent Reasoning Trace")
-            gr.Markdown(
-                "_Shows which specialized agent/tool handled each message, for the whole conversation. Scroll to review earlier turns._",
-                elem_id="cc-trace-caption",
+            # Mobile-only button to expand/collapse the trace section below;
+            # hidden on desktop where the trace panel is always visible.
+            trace_toggle_btn = gr.Button(
+                "🔍 Show Reasoning Trace",
+                elem_id="cc-trace-toggle",
+                size="sm",
             )
-            trace_panel = gr.Markdown(
-                "_Ask a question to see which specialized agent/tool handles it, step by step._",
-                elem_id="cc-trace",
-            )
+            with gr.Column(elem_id="cc-trace-body"):
+                gr.Markdown(
+                    "_Shows which specialized agent/tool handled each message, for the whole conversation. Scroll to review earlier turns._",
+                    elem_id="cc-trace-caption",
+                )
+                trace_panel = gr.Markdown(
+                    "_Ask a question to see which specialized agent/tool handles it, step by step._",
+                    elem_id="cc-trace",
+                )
 
     trace_state = gr.State([])  # Accumulates {"user_message", "steps"} for every turn this session
+
+    # Pure client-side toggle (no server round-trip) so it works instantly and
+    # doesn't interfere with the chat/trace state. Only affects mobile layout
+    # since #cc-trace-body is always visible via CSS on wider screens.
+    trace_toggle_btn.click(
+        fn=None,
+        inputs=None,
+        outputs=None,
+        js="""
+        () => {
+            const body = document.getElementById('cc-trace-body');
+            const toggleBtn = document.querySelector('#cc-trace-toggle button');
+            if (!body) return;
+            const isOpen = body.classList.toggle('cc-open');
+            if (toggleBtn) {
+                toggleBtn.innerText = isOpen ? '🔽 Hide Reasoning Trace' : '🔍 Show Reasoning Trace';
+            }
+        }
+        """,
+    )
 
     msg_input.submit(handle_chat, [msg_input, chatbot, trace_state], [chatbot, trace_state, trace_panel])
     msg_input.submit(lambda: "", None, msg_input)
