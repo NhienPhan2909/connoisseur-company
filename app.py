@@ -371,6 +371,13 @@ html, body {
 /* Stack the chat and trace panels on narrow / mobile screens */
 @media (max-width: 900px) {
     html, body {
+        /* The base rule fixes html/body to a rigid 100% (viewport) height,
+           which turns body into its own internal scroll box instead of
+           letting the actual page/viewport scroll — window.scrollTo /
+           touch pull-to-scroll then does nothing because the real
+           scrolling element (body) isn't the browser's root scroller.
+           Let both grow with content so native page scrolling works. */
+        height: auto;
         overflow-y: auto;
         overflow-x: hidden;
     }
@@ -378,7 +385,7 @@ html, body {
         height: auto !important;
         max-height: none !important;
         overflow: visible !important;
-        padding: 0.4rem 0.6rem !important;
+        padding: 0.4rem 0.35rem !important;
         width: 100% !important;
     }
     #cc-main-row {
@@ -431,7 +438,7 @@ html, body {
 /* Phone-sized screens: tighter spacing, full-width controls, larger touch targets */
 @media (max-width: 600px) {
     .gradio-container {
-        padding: 0.35rem 0.5rem !important;
+        padding: 0.35rem 0.25rem !important;
     }
     #cc-header h1 {
         font-size: 1.05rem;
@@ -560,6 +567,15 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=int(os.environ.get("PORT", 7860)),
         share=not running_on_host,
-        css=CUSTOM_CSS,
+        # Gradio's `css=` param auto-scopes every rule behind a
+        # ".gradio-container .contain" ancestor prefix for isolation. That
+        # prefix can never match `html`, `body`, or `.gradio-container`
+        # itself (an element can't be its own descendant), so any rule
+        # targeting those selectors inside an @media block was silently
+        # dropped — which broke the mobile scroll/overflow/padding
+        # overrides below. Injecting the CSS via `head=` instead places it
+        # in <head> as a plain, unscoped <style> tag so every selector
+        # (including html/body/.gradio-container) works as written.
+        head=f"<style>{CUSTOM_CSS}</style>",
         theme=gr.themes.Soft(primary_hue="orange", neutral_hue="slate"),
     )
