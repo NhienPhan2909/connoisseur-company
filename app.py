@@ -274,6 +274,35 @@ html, body {
     padding: 0.5rem 1rem !important;
     box-sizing: border-box !important;
 }
+/* Gradio wraps our layout in its own internal chain of flex containers
+   (.gradio-container > .main.app > .wrap > main.contain > our root Column)
+   before finally appending its own <footer> ("Use via API · Built with
+   Gradio · Settings"). Every link in that chain defaults to a content-based
+   min-height (or a hardcoded min-height: 100%), so on shorter desktop
+   viewports our chat/trace content simply keeps its natural (too-tall) size
+   instead of shrinking to fit — pushing the footer below the 100vh viewport
+   where `overflow: hidden` above then clips it, with no way to scroll to it.
+   Giving every link in the chain min-height: 0 lets the flexbox algorithm
+   actually shrink our content down to make room for the footer. */
+.gradio-container > .main.app,
+.gradio-container .wrap,
+.gradio-container main.contain {
+    min-height: 0 !important;
+}
+.gradio-container main.contain > .column {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+}
+.gradio-container footer {
+    flex-shrink: 0 !important;
+}
+/* Settings panel: hide the orange app URL Gradio prints next to the
+   "Settings" heading — it leaks the internal/host URL and isn't useful
+   to end users. The "Progressive Web App" section is removed separately
+   via JS (settings sections aren't distinguishable by CSS alone). */
+.url {
+    display: none !important;
+}
 #cc-header {
     text-align: center;
     padding: 0.25rem 0 0.5rem 0;
@@ -480,6 +509,31 @@ html, body {
 }
 """
 
+# Gradio's Settings panel has no elem_id/class hooks for its individual
+# sections, so the "Progressive Web App" banner can't be targeted with CSS
+# alone (it shares the exact same markup shape as the "Language" section).
+# This script watches the DOM and removes that banner by matching its
+# heading text whenever the Settings panel is opened.
+REMOVE_PWA_SECTION_JS = """
+<script>
+(function () {
+    function removePwaSection() {
+        document.querySelectorAll(".banner-wrap").forEach(function (banner) {
+            var heading = banner.querySelector("h2");
+            if (heading && heading.textContent.trim().indexOf("Progressive Web App") === 0) {
+                banner.remove();
+            }
+        });
+    }
+    new MutationObserver(removePwaSection).observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+    });
+    removePwaSection();
+})();
+</script>
+"""
+
 # Gradio Interface
 with gr.Blocks(title="Connoisseur Companion") as demo:
     with gr.Column(elem_id="cc-header"):
@@ -576,6 +630,6 @@ if __name__ == "__main__":
         # overrides below. Injecting the CSS via `head=` instead places it
         # in <head> as a plain, unscoped <style> tag so every selector
         # (including html/body/.gradio-container) works as written.
-        head=f"<style>{CUSTOM_CSS}</style>",
+        head=f"<style>{CUSTOM_CSS}</style>{REMOVE_PWA_SECTION_JS}",
         theme=gr.themes.Soft(primary_hue="orange", neutral_hue="slate"),
     )
