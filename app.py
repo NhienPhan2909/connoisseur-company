@@ -336,10 +336,19 @@ html, body {
 }
 .cc-examples {
     flex-shrink: 0;
+    flex-wrap: wrap !important;
 }
 .cc-examples button {
     border-radius: 999px !important;
     font-size: 0.8rem !important;
+}
+/* Larger, easier-to-tap touch targets across the board on touch devices */
+@media (pointer: coarse) {
+    #cc-msg-input textarea, #cc-msg-input input,
+    .cc-examples button,
+    #cc-chatbot button {
+        min-height: 44px;
+    }
 }
 /* Stack the chat and trace panels on narrow / mobile screens */
 @media (max-width: 900px) {
@@ -350,18 +359,69 @@ html, body {
         height: auto !important;
         max-height: none !important;
         overflow: visible !important;
+        padding: 0.4rem 0.6rem !important;
     }
     #cc-main-row {
         flex-direction: column !important;
+        gap: 0.75rem !important;
+    }
+    #cc-chat-col, #cc-trace-col {
+        height: auto !important;
+        min-width: 0 !important;
+        width: 100% !important;
     }
     #cc-chatbot {
-        height: 420px !important;
+        height: 60vh !important;
+        min-height: 320px;
     }
     #cc-trace {
         max-height: 320px;
     }
     #cc-header h1 {
         font-size: 1.3rem;
+    }
+}
+
+/* Phone-sized screens: tighter spacing, full-width controls, larger touch targets */
+@media (max-width: 600px) {
+    .gradio-container {
+        padding: 0.35rem 0.5rem !important;
+    }
+    #cc-header h1 {
+        font-size: 1.1rem;
+        line-height: 1.3;
+    }
+    #cc-header p {
+        font-size: 0.8rem;
+    }
+    #cc-chatbot {
+        height: 55vh !important;
+        min-height: 280px;
+        font-size: 0.95rem;
+    }
+    /* Prevent iOS Safari from auto-zooming when the input is focused
+       (it zooms in on any input/textarea with font-size below 16px). */
+    #cc-msg-input textarea, #cc-msg-input input {
+        font-size: 16px !important;
+        padding: 0.6rem 0.8rem !important;
+    }
+    /* Stack example prompt buttons full-width instead of a cramped row */
+    .cc-examples {
+        flex-direction: column !important;
+    }
+    .cc-examples button {
+        width: 100% !important;
+        white-space: normal !important;
+        min-height: 44px;
+        font-size: 0.85rem !important;
+    }
+    #cc-trace {
+        max-height: 260px;
+        padding: 0.6rem;
+        font-size: 0.9rem;
+    }
+    #cc-trace-caption {
+        font-size: 0.8rem;
     }
 }
 """
